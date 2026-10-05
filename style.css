@@ -183,3 +183,13 @@ table { font-size: .875rem; }
 td.text { min-width: 20rem; }
 .foot { max-width: 1240px; margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 2.5rem) 3rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .875rem; }
 .foot a { color: var(--chalk); }
+
+/* ---------- 양식이 다른 엑셀 (열 고르기) ---------- */
+.notice { max-width: 34rem; margin: 1rem 0 0; font-size: .875rem; color: var(--muted); }
+.results__actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.mapping { margin-top: 2.5rem; padding: 1.5rem; background: var(--tag); border: 1.5px dashed var(--chalk); border-radius: 8px; max-width: 46rem; }
+.mapping__grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .6rem 1rem; align-items: center; margin-top: 1rem; }
+.mapping select { width: 100%; min-height: 40px; padding: 0 .5rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: inherit; color: var(--ink); }
+.mapping label { font-weight: 600; font-size: .9375rem; }
+.mapping .status { margin-top: .75rem; }
+@media (max-width: 560px) { .mapping__grid { grid-template-columns: 1fr; } }

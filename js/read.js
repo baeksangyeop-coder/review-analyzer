@@ -17,8 +17,14 @@
     } else {
       throw new Error("엑셀(.xlsx, .xls)이나 CSV 파일만 올릴 수 있어요.");
     }
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "", blankrows: true });
+    // 시트가 여러 개면 열 이름 줄을 알아볼 수 있는 첫 시트를 씀 (없으면 첫 시트)
+    const sheets = wb.SheetNames.map((name) => ({
+      name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: "", blankrows: true }),
+    }));
+    const pick = sheets.find((sh) => RA.findHeader(sh.rows) >= 0) || sheets[0];
+    pick.rows.sheetName = pick.name;
+    pick.rows.sheetCount = sheets.length;
+    return pick.rows;
   }
 
   // 정리된 결과를 엑셀로 내려받기: 정리된 글 + 정리 기록

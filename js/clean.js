@@ -7,7 +7,8 @@
 (function (root) {
   const CONFIG = root.RA ? root.RA.CONFIG : require("./config.js");
 
-  const norm = (v) => String(v == null ? "" : v).replace(/\s+/g, "").toLowerCase();
+  // 열 이름 비교용: 띄어쓰기와 문장 부호를 지우고 소문자로 ('No.' = 'no', '리뷰 내용' = '리뷰내용')
+  const norm = (v) => String(v == null ? "" : v).replace(/[\s.·_:()\-]+/g, "").toLowerCase();
 
   // 1) 열 이름 줄 찾기: 위에서 20줄 안에서, 아는 열 이름이 가장 많이 들어 있는 줄
   function findHeader(rows) {
@@ -35,9 +36,16 @@
   // 날짜: 2026.10.03 14:22 / 2026/10/03 → 2026-10-03 14:22
   function fixDate(v) {
     const s = String(v || "").trim();
+    const p = (n) => String(n).padStart(2, "0");
+    // 엑셀 날짜 칸은 10/3/26 14:22 (월/일/연) 처럼 읽힐 때가 있음
+    const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+    if (us) {
+      const y = us[3].length === 2 ? "20" + us[3] : us[3];
+      const out = `${y}-${p(us[1])}-${p(us[2])}` + (us[4] ? ` ${p(us[4])}:${us[5]}` : "");
+      return { value: out, changed: true };
+    }
     const m = s.match(/^(\d{4})[.\-/]\s?(\d{1,2})[.\-/]\s?(\d{1,2})\.?(?:\s+(\d{1,2}):(\d{2}))?/);
     if (!m) return { value: s, changed: false };
-    const p = (n) => String(n).padStart(2, "0");
     const out = `${m[1]}-${p(m[2])}-${p(m[3])}` + (m[4] ? ` ${p(m[4])}:${m[5]}` : "");
     return { value: out, changed: out !== s };
   }
@@ -70,16 +78,45 @@
     return { text: out, found };
   }
 
-  function clean(rows) {
+  // 열 이름 줄을 못 찾았을 때 '직접 고르기' 화면이 처음 보여 줄 줄: 칸이 가장 많이 채워진 줄
+  function guessHeader(rows) {
+    let best = { index: 0, filled: 0 };
+    rows.slice(0, 20).forEach((row, i) => {
+      const filled = row.filter((c) => String(c == null ? "" : c).trim() !== "").length;
+      if (filled > best.filled) best = { index: i, filled };
+    });
+    return best.index;
+  }
+
+  // 자동으로 알아보지 못하면 이 오류를 던짐 → 화면이 열 고르기를 보여 줌
+  function needMapping(message, rows, headerIndex, map) {
+    const e = new Error(message);
+    e.code = "NEED_MAPPING";
+    e.headerIndex = headerIndex;
+    e.map = map || {};
+    return e;
+  }
+
+  // manual: { headerIndex, map } 을 주면 자동 찾기 대신 사람이 고른 열로 정리
+  function clean(rows, manual) {
     const log = { read: rows.length, skippedTop: 0, blank: [], dup: [], dateFixed: 0, starFixed: 0, starBad: [], masked: [] };
 
-    const h = findHeader(rows);
-    if (h < 0) throw new Error("열 이름 줄을 찾지 못했어요. 첫 20줄 안에 '내용', '작성일시' 같은 열 이름이 있는지 확인해 주세요.");
-    const map = mapColumns(rows[h]);
-    const missing = CONFIG.required.filter((k) => map[k] === undefined);
-    if (missing.length) throw new Error("글 내용이 들어 있는 열을 찾지 못했어요. 열 이름이 '내용'이나 '리뷰 내용'인지 확인해 주세요.");
+    let h, map;
+    if (manual) {
+      h = manual.headerIndex;
+      map = manual.map;
+      if (map.text === undefined) throw needMapping("글 내용이 들어 있는 열을 골라 주세요.", rows, h, map);
+    } else {
+      h = findHeader(rows);
+      if (h < 0) throw needMapping("열 이름 줄을 자동으로 찾지 못했어요. 열 이름이 있는 줄과 글 내용 열을 직접 골라 주세요.", rows, guessHeader(rows), {});
+      map = mapColumns(rows[h]);
+      if (map.text === undefined) throw needMapping("글 내용이 들어 있는 열을 자동으로 찾지 못했어요. 직접 골라 주세요.", rows, h, map);
+    }
     log.skippedTop = h;   // 열 이름 줄 위에 있던 제목 줄, 빈 줄
     log.columns = map;
+    log.headerIndex = h;
+    log.headerRow = rows[h].map((c) => String(c == null ? "" : c).trim());
+    log.manual = Boolean(manual);
 
     const seen = new Map();
     const out = [];
@@ -120,7 +157,11 @@
     return { rows: out, log };
   }
 
-  const api = { clean, findHeader, mapColumns, fixDate, fixStar, mask };
+  // 화면에 보여 줄 표준 열 이름 (필수는 글 내용 하나)
+  const FIELDS = [["text", "글 내용 (꼭 필요)"], ["date", "작성일시"], ["product", "상품명"], ["star", "별점"],
+                  ["kind", "구분 (리뷰, 문의)"], ["option", "옵션"], ["no", "번호"], ["author", "작성자"]];
+
+  const api = { clean, findHeader, guessHeader, mapColumns, fixDate, fixStar, mask, FIELDS };
   root.RA = root.RA || {};
   Object.assign(root.RA, api);
   if (typeof module !== "undefined") module.exports = api;

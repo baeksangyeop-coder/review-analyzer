@@ -40,15 +40,34 @@
       </span>
       <input id="file" class="tag__input" type="file" accept=".xlsx,.xls,.csv">
     </label>
+    <p class="notice">가상 데이터나 공개해도 되는 글만 올려 주세요. 이 체험판은 무료 AI를 써서, AI에 보낸 글이 AI 개선에 쓰일 수 있어요. 전화번호, 이메일, 주문번호, 주소처럼 정해진 형식의 개인정보만 가려져요.</p>
     <div class="actions">
       <button type="button" class="btn btn--ghost" id="sample">샘플 파일로 해 보기</button>
       <p class="status" id="status" role="status" aria-live="polite"></p>
     </div>
 
+    <!-- 열을 자동으로 알아보지 못했을 때, 또는 다시 고르고 싶을 때 -->
+    <section id="mapping" class="mapping" hidden aria-labelledby="mapping-title">
+      <h2 id="mapping-title">열 고르기</h2>
+      <p class="hint" id="mapping-msg"></p>
+      <div class="mapping__grid">
+        <label for="map-header">열 이름이 있는 줄</label>
+        <select id="map-header"></select>
+      </div>
+      <div class="mapping__grid" id="map-fields"></div>
+      <p class="status is-error" id="mapping-error" role="alert"></p>
+      <div class="actions">
+        <button type="button" class="btn" id="map-apply">이대로 정리하기</button>
+      </div>
+    </section>
+
     <section id="results" class="results" hidden aria-labelledby="steps-title">
       <div class="results__head">
         <h2 id="steps-title">정리 기록</h2>
-        <button type="button" class="btn" id="download">정리된 파일 받기</button>
+        <div class="results__actions">
+          <button type="button" class="btn btn--ghost" id="remap">열 다시 고르기</button>
+          <button type="button" class="btn" id="download">정리된 파일 받기</button>
+        </div>
       </div>
       <ol class="steps" id="steps"></ol>
 

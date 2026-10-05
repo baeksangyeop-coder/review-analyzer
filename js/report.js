@@ -17,7 +17,7 @@
   // ---------- 집계 (화면과 상관없는 순수 계산이라 따로 시험 가능) ----------
   function buildReport(result) {
     const rows = result.rows.filter((r) => r.ai && r.ai.type);
-    const dates = rows.map((r) => r.date.slice(0, 10)).filter(Boolean).sort();
+    const dates = rows.map((r) => r.date.slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
     const urgent = rows.filter((r) => r.ai.urgency === URGENT).sort((a, b) => b.date.localeCompare(a.date));
     const check = result.rows.filter((r) => r.ai && r.ai.status === "확인필요");
     const negative = rows.filter((r) => r.ai.sentiment === "부정").length;
@@ -28,7 +28,8 @@
     // 상품별: 상품 때문에 생기는 불만이 많은 순
     const products = {};
     rows.forEach((r) => {
-      const p = (products[r.product] ||= { name: r.product, total: 0, negative: 0, urgent: 0, types: {} });
+      const pname = r.product || "(상품명 없음)";   // 상품명 열이 없는 엑셀도 있음
+      const p = (products[pname] ||= { name: pname, total: 0, negative: 0, urgent: 0, types: {} });
       p.total++;
       if (r.ai.sentiment === "부정") p.negative++;
       if (r.ai.urgency === URGENT) p.urgent++;
@@ -43,8 +44,9 @@
     // 요약 문장: 집계된 숫자만으로 만듦
     const topType = Object.entries(byType).filter(([t]) => t !== "칭찬").sort((a, b) => b[1] - a[1])[0];
     const worst = productList[0];
+    const period = dates.length ? `${dates[0]} ~ ${dates[dates.length - 1]} ` : "";   // 날짜 열이 없으면 기간을 빼고 씀
     const sentences = [
-      `${dates[0] || ""} ~ ${dates[dates.length - 1] || ""} 리뷰·문의 ${rows.length}건 중 즉시 대응이 필요한 글은 ${urgent.length}건이에요.`,
+      `${period}리뷰·문의 ${rows.length}건 중 즉시 대응이 필요한 글은 ${urgent.length}건이에요.`,
       topType ? `칭찬을 빼면 가장 많은 유형은 ${topType[0]}(${topType[1]}건)이고, 부정적인 글은 전체의 ${pct(negative, rows.length)}%예요.` : "",
       worst && worst.complaints ? `불만이 가장 많은 상품은 ${worst.name}(불만 ${worst.complaints}건, 그중 ${worst.top})이에요.` : "",
       check.length ? `AI 판단을 사람이 확인해야 하는 글이 ${check.length}건 있어요. '확인필요' 시트를 봐 주세요.` : "AI 판단을 따로 확인해야 하는 글은 없어요.",
@@ -102,7 +104,7 @@
     const s = wb.addWorksheet("요약", { views: [{ showGridLines: false }] });
     s.getColumn(1).width = 22; s.getColumn(2).width = 12; s.getColumn(3).width = 34;
     s.addRow(["무숙녀 리뷰·문의 보고서"]).font = { bold: true, size: 16, color: { argb: C.ink } };
-    s.addRow([`기간 ${R.dates[0]} ~ ${R.dates[R.dates.length - 1]}  /  만든 날 ${new Date().toISOString().slice(0, 10)}`]).font = { color: { argb: "FF566170" } };
+    s.addRow([`${R.dates.length ? `기간 ${R.dates[0]} ~ ${R.dates[R.dates.length - 1]}  /  ` : ""}만든 날 ${new Date().toISOString().slice(0, 10)}`]).font = { color: { argb: "FF566170" } };
     s.addRow([]);
     R.sentences.forEach((t) => { const row = s.addRow([t]); s.mergeCells(row.number, 1, row.number, 6); row.alignment = { wrapText: true }; row.height = 30; });
     s.addRow([]);
@@ -161,7 +163,7 @@
     const buf = await wb.xlsx.writeBuffer();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-    a.download = `무숙녀_리뷰문의_보고서_${R.dates[0]}_${R.dates[R.dates.length - 1]}.xlsx`;
+    a.download = R.dates.length ? `무숙녀_리뷰문의_보고서_${R.dates[0]}_${R.dates[R.dates.length - 1]}.xlsx` : "무숙녀_리뷰문의_보고서.xlsx";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     return R;

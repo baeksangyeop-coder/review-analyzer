@@ -18,23 +18,103 @@
     statusEl.classList.toggle("is-error", Boolean(isError));
   }
 
+  let rawRows = null, rawSample = false;
+
   async function handle(file, isSample) {
     if (!file) return;
     if (controller) { setStatus("AI 분류가 진행 중이에요. 멈춘 뒤에 새 파일을 올려 주세요.", true); return; }
     fileName = file.name;
     setStatus(`${file.name} 읽는 중…`);
+    $("#mapping").hidden = true;
     try {
-      const rows = await RA.readFile(file);
-      current = RA.clean(rows);
-      current.sample = Boolean(isSample);
-      setStatus(`${file.name}: 글 ${current.log.kept}건을 정리했어요.`);
-      render();
+      rawRows = await RA.readFile(file);
+      rawSample = Boolean(isSample);
+      runClean();
     } catch (err) {
       console.error(err);
       results.hidden = true;
       setStatus(err.message || "파일을 읽지 못했어요. 다른 파일로 다시 해 보세요.", true);
     }
   }
+
+  // 정리하기: 자동으로 열을 알아보지 못하면 '열 고르기'를 보여 줌
+  function runClean(manual) {
+    try {
+      current = RA.clean(rawRows, manual);
+      current.sample = rawSample && !manual;   // 열을 바꾸면 저장된 결과와 맞지 않으니 실제 분류로
+      $("#mapping").hidden = true;
+      const sheet = rawRows.sheetCount > 1 ? ` ('${rawRows.sheetName}' 시트)` : "";
+      setStatus(`${fileName}${sheet}: 글 ${current.log.kept}건을 정리했어요.`);
+      render();
+    } catch (err) {
+      if (err.code !== "NEED_MAPPING") throw err;
+      results.hidden = true;
+      setStatus("열을 골라 주세요.", true);
+      showMapping(err.headerIndex, err.map, err.message);
+    }
+  }
+
+  // ---------- 열 고르기 ----------
+  const colName = (i) => { let n = "", x = i + 1; while (x) { const r = (x - 1) % 26; n = String.fromCharCode(65 + r) + n; x = Math.floor((x - 1) / 26); } return n; };
+  const cellText = (v) => String(v == null ? "" : v).trim();
+
+  function fillFieldSelects(headerIndex, map) {
+    const header = rawRows[headerIndex] || [];
+    const width = Math.max(...rawRows.slice(0, 50).map((r) => r.length), header.length);
+    const box = $("#map-fields");
+    box.replaceChildren();
+    RA.FIELDS.forEach(([key, label]) => {
+      const id = `map-${key}`;
+      const l = document.createElement("label"); l.htmlFor = id; l.textContent = label;
+      const sel = document.createElement("select"); sel.id = id; sel.dataset.key = key;
+      const none = document.createElement("option"); none.value = ""; none.textContent = key === "text" ? "골라 주세요" : "없음";
+      sel.appendChild(none);
+      for (let i = 0; i < width; i++) {
+        const o = document.createElement("option");
+        o.value = String(i);
+        const name = cellText(header[i]);
+        const sample = cellText((rawRows[headerIndex + 1] || [])[i]).slice(0, 18);
+        o.textContent = `${colName(i)}열${name ? `: ${name}` : ""}${sample ? ` (예: ${sample})` : ""}`;
+        sel.appendChild(o);
+      }
+      if (map[key] !== undefined) sel.value = String(map[key]);
+      box.append(l, sel);
+    });
+  }
+
+  function showMapping(headerIndex, map, message) {
+    $("#mapping-msg").textContent = message;
+    $("#mapping-error").textContent = "";
+    const hs = $("#map-header");
+    hs.replaceChildren();
+    rawRows.slice(0, 20).forEach((row, i) => {
+      const o = document.createElement("option");
+      o.value = String(i);
+      const preview = row.map(cellText).filter(Boolean).slice(0, 4).join(", ");
+      o.textContent = `${i + 1}번째 줄${preview ? `: ${preview.slice(0, 40)}` : " (빈 줄)"}`;
+      hs.appendChild(o);
+    });
+    hs.value = String(headerIndex);
+    fillFieldSelects(headerIndex, map);
+    $("#mapping").hidden = false;
+    $("#mapping").scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+  }
+
+  $("#map-header").addEventListener("change", (e) => {
+    const h = Number(e.target.value);
+    fillFieldSelects(h, RA.mapColumns(rawRows[h] || []));   // 줄을 바꾸면 그 줄 기준으로 다시 맞춰 봄
+  });
+  $("#map-apply").addEventListener("click", () => {
+    const map = {};
+    document.querySelectorAll("#map-fields select").forEach((s) => { if (s.value !== "") map[s.dataset.key] = Number(s.value); });
+    if (map.text === undefined) { $("#mapping-error").textContent = "글 내용 열은 꼭 골라야 해요."; $("#map-text").focus(); return; }
+    runClean({ headerIndex: Number($("#map-header").value), map });
+  });
+  $("#remap").addEventListener("click", () => {
+    if (!current || controller) return;
+    results.hidden = true;
+    showMapping(current.log.headerIndex, current.log.columns, "열을 다시 골라 정리할 수 있어요. 지금 알아본 열이 미리 골라져 있어요.");
+  });
 
   // ---------- 정리 기록 ----------
   function stepItem(label, count, detail) {
@@ -57,8 +137,16 @@
     L.masked.forEach((m) => m.found.forEach((f) => (kinds[f] = (kinds[f] || 0) + 1)));
     const maskDetail = Object.entries(kinds).map(([k, v]) => `${k} ${v}`).join(", ");
 
+    // 어떤 열을 무엇으로 알아봤는지 (엉뚱한 열을 잡았으면 '열 다시 고르기')
+    const colDetail = RA.FIELDS.map(([key, label]) => {
+      const i = L.columns[key];
+      const name = i === undefined ? "없음" : `${colName(i)}열 '${L.headerRow[i] || "이름 없음"}'`;
+      return `${label.replace(" (꼭 필요)", "")} ← ${name}`;
+    }).join("\n");
+
     $("#steps").replaceChildren(
       stepItem("읽은 줄", `${L.read}줄`),
+      stepItem(L.manual ? "직접 고른 열" : "열 알아보기", `${Object.keys(L.columns).length}개`, colDetail),
       stepItem("열 이름 위의 제목 줄과 빈 줄 건너뜀", `${L.skippedTop}줄`),
       stepItem("빈 줄 뺌", `${L.blank.length}줄`, L.blank.length ? `엑셀 ${L.blank.join(", ")}번째 줄` : ""),
       stepItem("같은 글이 두 번 들어간 줄 뺌", `${L.dup.length}줄`,
