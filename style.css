@@ -12,7 +12,7 @@
   --line: #CDD4DD;
   --tag: #FFFFFF;
   --error: #B42335;
-  --font: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Malgun Gothic", sans-serif;
+  --font: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Malgun Gothic", sans-serif, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji";   /* 이모티콘이 네모로 깨지지 않게 */
   --ease: cubic-bezier(.22, 1, .36, 1);
 }
 *, *::before, *::after { box-sizing: border-box; }
