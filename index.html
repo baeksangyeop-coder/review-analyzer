@@ -11,10 +11,13 @@
   <link rel="stylesheet" href="style.css">
   <!-- 순서 중요: SheetJS(엑셀 읽기) → 설정 → 정리 → 읽기 → 화면 -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+  <!-- 보고서 엑셀 꾸미기(색, 틀 고정, 필터)용 -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
   <script src="js/config.js" defer></script>
   <script src="js/clean.js" defer></script>
   <script src="js/read.js" defer></script>
   <script src="js/classify.js" defer></script>
+  <script src="js/report.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -51,7 +54,8 @@
 
       <section class="ai" aria-labelledby="ai-title">
         <h2 id="ai-title">AI 분류</h2>
-        <p class="hint">정리된 글을 20건씩 Gemini에 보내 기준표대로 분류해요. 개인정보를 가린 글만 보내고, 무료 사용 한도 때문에 묶음 사이를 몇 초씩 쉬어서 300건이면 2~3분 걸려요.</p>
+        <p class="hint">정리된 글을 20건씩 Gemini에 보내 기준표대로 분류해요. 개인정보를 가린 글만 보내고, 300건이면 2분쯤 걸려요. 공개 체험이라 하루에 쓸 수 있는 횟수가 정해져 있어요.</p>
+        <p class="hint ai__note" id="ai-note"></p>
         <div class="ai__actions">
           <button type="button" class="btn btn--ghost" id="ai-test">처음 20건으로 시험</button>
           <button type="button" class="btn" id="ai-all">전체 분류</button>
@@ -62,6 +66,13 @@
           <p id="ai-status" role="status" aria-live="polite"></p>
         </div>
         <dl class="ai__summary" id="ai-summary" hidden></dl>
+        <div class="report" id="report-box" hidden>
+          <div>
+            <h3>보고서 엑셀</h3>
+            <p class="hint">요약, 즉시 대응, 상품별, 전체 결과, 확인필요, 정리 기록 시트가 들어 있어요. 내용은 개인정보를 가린 글이고, 원문은 번호로 쇼핑몰 관리자 화면에서 찾으면 돼요.</p>
+          </div>
+          <button type="button" class="btn" id="report">보고서 받기</button>
+        </div>
       </section>
 
       <div class="preview__head">
@@ -86,5 +97,9 @@
       </div>
     </section>
   </main>
+
+  <footer class="foot">
+    <p>가상 쇼핑몰 '무숙녀'와 AI로 만든 가상 리뷰로 만든 포트폴리오 작업이에요. 만든 사람 <a href="https://baek-sangyeop.vercel.app">BAEK SANGYEOP</a></p>
+  </footer>
 </body>
 </html>

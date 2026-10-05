@@ -22,6 +22,8 @@
       });
       const data = await res.json().catch(() => ({}));
       // 한도에 걸렸거나(429) Gemini가 붐빌 때(503)는 기다렸다가 다시 보냄
+      // 하루 한도를 다 쓴 경우는 기다려도 소용없으니 바로 알림
+      if (data.code === "DAILY_LIMIT") { const e = new Error(data.message); e.daily = true; throw e; }
       if ((res.status === 429 || res.status === 503) && attempt < maxRetry) {
         await wait((data.retryAfter || 30) * 1000, signal);
         continue;

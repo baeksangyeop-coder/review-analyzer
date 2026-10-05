@@ -18,7 +18,7 @@
     statusEl.classList.toggle("is-error", Boolean(isError));
   }
 
-  async function handle(file) {
+  async function handle(file, isSample) {
     if (!file) return;
     if (controller) { setStatus("AI 분류가 진행 중이에요. 멈춘 뒤에 새 파일을 올려 주세요.", true); return; }
     fileName = file.name;
@@ -26,6 +26,7 @@
     try {
       const rows = await RA.readFile(file);
       current = RA.clean(rows);
+      current.sample = Boolean(isSample);
       setStatus(`${file.name}: 글 ${current.log.kept}건을 정리했어요.`);
       render();
     } catch (err) {
@@ -73,7 +74,12 @@
     ["#only-masked", "#show-original", "#only-urgent", "#only-check"].forEach((id) => ($(id).checked = false));
     $("#ai-progress").hidden = true;
     $("#ai-summary").hidden = true;
+    $("#report-box").hidden = true;
     results.hidden = false;
+    $("#ai-all").textContent = current.sample ? "저장된 분류 결과 보기" : "전체 분류";
+    $("#ai-note").textContent = current.sample
+      ? "샘플은 미리 분류해 둔 결과를 바로 보여 줘요. '처음 20건으로 시험'을 누르면 지금 실제로 AI에 보내 분류해요."
+      : "";
     rerender();
     results.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
   }
@@ -161,6 +167,7 @@
   // ---------- AI 분류 ----------
   function summarize(info) {
     const done = current.rows.filter((r) => r.ai);
+    $("#report-box").hidden = !done.length;
     if (!done.length) { $("#ai-summary").hidden = true; return; }   // 하나도 못 받았으면 요약을 띄우지 않음
     const count = (fn) => done.filter(fn).length;
     const types = {};
@@ -173,14 +180,36 @@
     add("확인필요", `${count((r) => r.ai.status === "확인필요")}건`);
     add("유형별", Object.entries(types).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(", "));
     if (info) {
-      add("걸린 시간", `${info.seconds}초 (AI 요청 ${info.usage.calls}번)`);
+      add("걸린 시간", `${info.seconds}초 (AI 요청 ${info.usage.calls}번)${info.saved ? ", 저장할 때 실제로 걸린 시간" : ""}`);
       add("사용량", `보낸 글 ${info.usage.prompt.toLocaleString()} 토큰, 받은 답 ${info.usage.output.toLocaleString()} 토큰 (${info.model})`);
     }
     dl.hidden = false;
   }
 
+  // 샘플은 미리 분류해 저장한 결과를 바로 보여 줌 (방문자가 눌러도 AI 사용량을 쓰지 않고, 기다리지 않게)
+  async function loadSaved() {
+    const st = $("#ai-status");
+    $("#ai-progress").hidden = false;
+    try {
+      const res = await fetch("sample/musooknyeo-results.json");
+      if (!res.ok) throw new Error();
+      const saved = await res.json();
+      current.rows.forEach((r) => { r.ai = saved.results[r.no]; });
+      const m = saved.meta;
+      $("#ai-bar").max = 1; $("#ai-bar").value = 1;
+      st.textContent = `미리 분류해 둔 결과를 불러왔어요 (${m.date}, ${m.note}).`;
+      st.classList.remove("is-error");
+      summarize({ seconds: m.seconds, model: m.model, usage: { calls: m.calls, prompt: m.prompt, output: m.output }, saved: true });
+      rerender();
+    } catch {
+      st.textContent = "저장된 결과를 불러오지 못했어요.";
+      st.classList.add("is-error");
+    }
+  }
+
   async function runAI(limit) {
     if (!current || controller) return;
+    if (current.sample && !limit) return loadSaved();
     const rows = current.rows.slice(0, limit || current.rows.length);
     controller = new AbortController();
     const bar = $("#ai-bar"), st = $("#ai-status");
@@ -224,7 +253,7 @@
       const res = await fetch("sample/musooknyeo-reviews.xlsx");
       if (!res.ok) throw new Error();
       const blob = await res.blob();
-      handle(new File([blob], "무숙녀_리뷰문의_샘플.xlsx"));
+      handle(new File([blob], "무숙녀_리뷰문의_샘플.xlsx"), true);
     } catch {
       setStatus("샘플 파일을 불러오지 못했어요. Live Server로 열었는지 확인해 주세요.", true);
     }
@@ -235,4 +264,11 @@
   $("#ai-test").addEventListener("click", () => runAI(20));
   $("#ai-all").addEventListener("click", () => runAI());
   $("#ai-stop").addEventListener("click", () => controller && controller.abort());
+  $("#report").addEventListener("click", async () => {
+    const btn = $("#report");
+    btn.disabled = true; btn.textContent = "만드는 중…";
+    try { await RA.downloadReport(current, fileName); }
+    catch (err) { console.error(err); setStatus(err.message || "보고서를 만들지 못했어요.", true); }
+    finally { btn.disabled = false; btn.textContent = "보고서 받기"; }
+  });
 })();

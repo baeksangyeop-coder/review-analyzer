@@ -9,7 +9,8 @@
 // 3. 개인정보가 가려지지 않은 글이 섞였으면 AI에 보내지 않고 돌려보냄 (이중 확인)
 // 4. 기준표와 함께 Gemini에 분류 요청
 // 5. Gemini가 붐비거나 그 모델을 쓸 수 없으면 예비 모델로 차례로 시도
-// 6. 돌아온 결과 검사: 기준표에 있는 값인지, 근거 문구가 원문에 실제로 있는지
+// 6. 하루 사용량 한도 확인 (공개 체험에서 무료 한도를 다 써 버리지 않게)
+// 7. 돌아온 결과 검사: 기준표에 있는 값인지, 근거 문구가 원문에 실제로 있는지
 //    이상한 건 한 번 다시 요청하고, 그래도 이상하면 '확인필요'로 표시
 // =========================================================
 
@@ -180,11 +181,36 @@ async function askWithFallback(items: any[], key: string, models: string[], used
   throw last;
 }
 
+// 허락된 주소인지: '*'가 들어간 항목은 그 자리에 아무 글자나 와도 됨
+// (Vercel은 미리보기 배포마다 주소 뒤에 글자가 붙어서 review-analyzer-abc123.vercel.app 같은 주소가 생김)
+export function originAllowed(origin: string, allowed: string[]) {
+  return allowed.some((a) => {
+    if (!a.includes("*")) return a === origin;
+    const re = new RegExp("^" + a.split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[a-z0-9-]*") + "$");
+    return re.test(origin);
+  });
+}
+
+// 하루 사용량: 요청(20건 묶음)마다 1씩 세고, 한도를 넘으면 false
+async function takeQuota(limit: number) {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return false;   // 셀 수 없으면 막음 (열어 두는 것보다 안전)
+  const res = await fetch(`${url}/rest/v1/rpc/ra_take_quota`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ p_limit: limit }),
+  });
+  if (!res.ok) return false;
+  return (await res.json()) === true;
+}
+
 Deno.serve(async (req) => {
-  const allowed = (Deno.env.get("ALLOWED_ORIGINS") || "http://127.0.0.1:5500,http://localhost:5500").split(",").map((s) => s.trim());
+  const allowed = (Deno.env.get("ALLOWED_ORIGINS") || "http://127.0.0.1:5500,http://localhost:5500,https://review-analyzer*.vercel.app")
+    .split(",").map((s) => s.trim()).filter(Boolean);
   const origin = req.headers.get("Origin") || "";
-  const okOrigin = allowed.includes(origin);
-  const headers = { ...corsHeaders(okOrigin ? origin : allowed[0]), "Content-Type": "application/json" };
+  const okOrigin = originAllowed(origin, allowed);
+  const headers = { ...corsHeaders(okOrigin ? origin : "null"), "Content-Type": "application/json" };
   const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers });
 
   if (req.method === "OPTIONS") return new Response("ok", { headers });
@@ -216,6 +242,11 @@ Deno.serve(async (req) => {
   }
   const leaked = clean.filter((c: any) => PII.some((p) => p.test(c.text))).map((c: any) => c.id);
   if (leaked.length) return reply(400, { message: "개인정보가 가려지지 않은 글이 있어 AI에 보내지 않았어요.", ids: leaked });
+
+  const dailyLimit = Number(Deno.env.get("RA_DAILY_LIMIT") || 40);
+  if (!(await takeQuota(dailyLimit))) {
+    return reply(429, { code: "DAILY_LIMIT", message: `오늘 쓸 수 있는 AI 분류 횟수(${dailyLimit}번)를 다 썼어요. 내일 다시 해 보거나, 샘플 파일로 미리 분류해 둔 결과를 둘러봐 주세요.` });
+  }
 
   const usage = { prompt: 0, output: 0, calls: 0 };
   const results = new Map<string, any>();
