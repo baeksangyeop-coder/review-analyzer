@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>리뷰·문의 정리 | 무숙녀 고객센터</title>
+  <!-- 행택 모양 아이콘 (따로 파일을 두지 않고 그림 글자로) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>">
   <meta name="description" content="리뷰와 문의 엑셀을 올리면 지저분한 줄을 걸러 내고 개인정보를 가려 정리합니다.">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
@@ -11,8 +13,6 @@
   <link rel="stylesheet" href="style.css">
   <!-- 순서 중요: SheetJS(엑셀 읽기) → 설정 → 정리 → 읽기 → 화면 -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <!-- 보고서 엑셀 꾸미기(색, 틀 고정, 필터)용 -->
-  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
   <script src="js/config.js" defer></script>
   <script src="js/clean.js" defer></script>
   <script src="js/read.js" defer></script>
@@ -62,7 +62,7 @@
           <button type="button" class="btn btn--ghost" id="ai-stop" hidden>멈추기</button>
         </div>
         <div class="ai__progress" id="ai-progress" hidden>
-          <progress id="ai-bar" max="1" value="0"></progress>
+          <progress id="ai-bar" max="1" value="0" aria-label="AI 분류 진행"></progress>
           <p id="ai-status" role="status" aria-live="polite"></p>
         </div>
         <dl class="ai__summary" id="ai-summary" hidden></dl>

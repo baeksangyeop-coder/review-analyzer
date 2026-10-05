@@ -158,7 +158,7 @@ mark.masked {
 
 /* 표 안의 AI 결과 */
 td small { color: var(--muted); font-size: .8125rem; }
-td.empty { color: #A5AEBA; }
+td.empty { color: var(--muted); }   /* 흐린 회색은 글자 대비가 모자라서 기본 보조색으로 */
 td.summary { white-space: normal; min-width: 12rem; }
 td.urgent { color: var(--error); font-weight: 700; }
 tr.is-urgent td:first-child { box-shadow: inset 3px 0 0 var(--error); }

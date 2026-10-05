@@ -79,9 +79,22 @@
     evidence: r.ai?.evidence || "", text: r.text, status: r.ai?.status || "", reasons: (r.ai?.reasons || []).join(" / "),
   });
 
+  // ExcelJS는 크기가 커서, 보고서를 처음 받을 때만 불러옴 (첫 화면이 빨리 뜨게)
+  function loadExcelJS() {
+    if (root.ExcelJS) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("보고서 도구를 불러오지 못했어요. 인터넷 연결을 확인해 주세요."));
+      document.head.appendChild(s);
+    });
+  }
+
   async function downloadReport(result, sourceName) {
     const R = buildReport(result);
     if (!R.rows.length) throw new Error("AI 분류 결과가 없어요. 먼저 AI 분류를 해 주세요.");
+    await loadExcelJS();
     const wb = new ExcelJS.Workbook();
     wb.creator = "무숙녀 고객센터 리뷰·문의 정리";
 
