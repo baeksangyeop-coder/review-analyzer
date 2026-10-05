@@ -24,8 +24,15 @@
   // 정리된 결과를 엑셀로 내려받기: 정리된 글 + 정리 기록
   function downloadCleaned(result, sourceName) {
     const L = result.log;
-    const rows = [["번호", "작성일시", "구분", "상품명", "옵션", "별점", "내용 (개인정보 가림)", "가린 항목"]];
-    result.rows.forEach((r) => rows.push([r.no, r.date, r.kind, r.product, r.option, r.star ?? "", r.text, r.masked.join(", ")]));
+    // AI 분류를 했으면 그 결과 칸도 함께 (정답표와 비교할 때 이 파일을 씀)
+    const rows = [["번호", "작성일시", "구분", "상품명", "옵션", "별점", "내용 (개인정보 가림)", "가린 항목",
+                   "주 유형", "함께 언급된 유형", "요청 사항", "감정", "긴급도", "요약", "근거 문구", "확인", "확인 사유"]];
+    result.rows.forEach((r) => {
+      const a = r.ai || {};
+      rows.push([r.no, r.date, r.kind, r.product, r.option, r.star ?? "", r.text, r.masked.join(", "),
+                 a.type || "", (a.also || []).join(", "), a.request || "", a.sentiment || "", a.urgency || "",
+                 a.summary || "", a.evidence || "", a.status || "", (a.reasons || []).join(" / ")]);
+    });
     const log = [
       ["항목", "건수", "자세히"],
       ["읽은 줄", L.read, ""],

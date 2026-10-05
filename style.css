@@ -16,6 +16,8 @@
   --ease: cubic-bezier(.22, 1, .36, 1);
 }
 *, *::before, *::after { box-sizing: border-box; }
+/* hidden 속성이 버튼의 display 설정에 지지 않게 (멈추기 버튼이 계속 보이던 문제) */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   font-family: var(--font);
@@ -138,3 +140,30 @@ mark.masked {
   .tag__hole { left: 1rem; }
   .tag::after { left: 2.4rem; }
 }
+
+/* ---------- AI 분류 (3단계) ---------- */
+.ai { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--line); }
+.ai__actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.ai__progress { margin-top: 1.25rem; }
+.ai__progress progress { width: min(100%, 34rem); height: 10px; accent-color: var(--chalk); }
+.ai__progress p { margin: .4rem 0 0; color: var(--muted); }
+.ai__progress p.is-error { color: var(--error); font-weight: 600; }
+.ai__summary {
+  display: grid; grid-template-columns: max-content 1fr; gap: .4rem 1.25rem;
+  margin: 1.25rem 0 0; padding: 1rem 1.25rem; background: var(--tag); border: 1px solid var(--line); border-radius: 8px;
+}
+.ai__summary dt { color: var(--muted); }
+.ai__summary dd { margin: 0; font-weight: 600; }
+
+/* 표 안의 AI 결과 */
+td small { color: var(--muted); font-size: .8125rem; }
+td.empty { color: #A5AEBA; }
+td.summary { white-space: normal; min-width: 12rem; }
+td.urgent { color: var(--error); font-weight: 700; }
+tr.is-urgent td:first-child { box-shadow: inset 3px 0 0 var(--error); }
+td.status { white-space: normal; min-width: 9rem; }
+.flag { color: var(--error); font-weight: 700; }
+.flag small { font-weight: 400; }
+.ok { color: var(--muted); }
+.evidence { text-decoration: underline 2px var(--chalk); text-underline-offset: 3px; }

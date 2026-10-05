@@ -31,6 +31,16 @@
     ],
     // 이름처럼 보여도 이름이 아닌 말 (전화번호 앞에 자주 오는 단어)
     // 말끝(요, 다, 까 등)으로 끝나는 단어도 이름이 아님
+    // AI 분류 서버 함수 (3단계). 주소와 공개용 키는 화면에 드러나도 되는 값
+    // Gemini API 키는 여기에 절대 넣지 않음. Supabase 서버 함수의 비밀 설정에만 있음
+    ai: {
+      endpoint: "https://yzojuvnidtmrodutizqw.supabase.co/functions/v1/classify-reviews",
+      publishableKey: "sb_publishable_b3u0Hg0mGWssa1GG28g-0w_m88WKn9Z",
+      batchSize: 20,     // 서버도 20건까지만 받음
+      gapMs: 6000,       // 묶음 사이 쉬는 시간 (무료 한도: 분당 요청 수 제한)
+      parallel: 2,       // 동시에 보내는 묶음 수
+      maxRetry: 3        // 한도에 걸리면 기다렸다가 다시 보내는 횟수
+    },
     notNameEndings: /(요|다|까|죠|네|게|서|고)$/,
     notNames: ["연락처", "전화", "번호", "휴대폰", "핸드폰", "연락", "주세요", "드려요", "입니다", "에요", "이에요", "부탁드려요"]
   };

@@ -14,6 +14,7 @@
   <script src="js/config.js" defer></script>
   <script src="js/clean.js" defer></script>
   <script src="js/read.js" defer></script>
+  <script src="js/classify.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -48,17 +49,34 @@
       </div>
       <ol class="steps" id="steps"></ol>
 
+      <section class="ai" aria-labelledby="ai-title">
+        <h2 id="ai-title">AI 분류</h2>
+        <p class="hint">정리된 글을 20건씩 Gemini에 보내 기준표대로 분류해요. 개인정보를 가린 글만 보내고, 무료 사용 한도 때문에 묶음 사이를 몇 초씩 쉬어서 300건이면 2~3분 걸려요.</p>
+        <div class="ai__actions">
+          <button type="button" class="btn btn--ghost" id="ai-test">처음 20건으로 시험</button>
+          <button type="button" class="btn" id="ai-all">전체 분류</button>
+          <button type="button" class="btn btn--ghost" id="ai-stop" hidden>멈추기</button>
+        </div>
+        <div class="ai__progress" id="ai-progress" hidden>
+          <progress id="ai-bar" max="1" value="0"></progress>
+          <p id="ai-status" role="status" aria-live="polite"></p>
+        </div>
+        <dl class="ai__summary" id="ai-summary" hidden></dl>
+      </section>
+
       <div class="preview__head">
         <h2>미리보기</h2>
         <div class="filters">
+          <label class="check"><input type="checkbox" id="only-urgent"> 즉시 대응만</label>
+          <label class="check"><input type="checkbox" id="only-check"> 확인필요만</label>
           <label class="check"><input type="checkbox" id="only-masked"> 개인정보를 가린 글만</label>
           <label class="check"><input type="checkbox" id="show-original"> 원문으로 보기</label>
         </div>
       </div>
-      <p class="hint">AI에는 가린 글만 보냅니다. 원문 보기는 가린 결과가 맞는지 이 화면에서 확인하는 용도예요.</p>
+      <p class="hint">AI에는 가린 글만 보냅니다. 원문 보기는 가린 결과가 맞는지 이 화면에서 확인하는 용도예요. 밑줄 친 부분은 AI가 판단 근거로 고른 문구예요.</p>
       <div class="table-wrap" tabindex="0" aria-label="정리된 글 표 (가로로 넘겨 볼 수 있어요)">
         <table>
-          <thead><tr><th>번호</th><th>작성일시</th><th>구분</th><th>상품명</th><th>옵션</th><th class="num">별점</th><th>내용</th></tr></thead>
+          <thead><tr><th>번호</th><th>작성일시</th><th>구분</th><th>상품명</th><th class="num">별점</th><th>긴급도</th><th>주 유형</th><th>요청</th><th>감정</th><th>내용</th><th>요약</th><th>확인</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
